@@ -1,21 +1,105 @@
---==============================================================
---  CHANGELOG MOD — MAIN MOD FILE
---==============================================================
+-- changelog/init.lua
+-- Sleek, in-game terminal GUI to track all mod activity on the server.  
+-- Author: Cashia ©2025
 
-local modpath = minetest.get_modpath(minetest.get_current_modname())
-local CONFIG = dofile(modpath .. "/settings.lua")
+local modname = minetest.get_current_modname()
+local modpath = minetest.get_modpath(modname)
+
+
+-- === DEFAULT CONFIG ====
+local DEFAULT_CONFIG = {
+    colors = {
+        bg        = "#050512",
+        panel     = "#0A0B23",
+        border    = "#5A63F1",
+        text      = "#E9EDFF",
+        text_soft = "#C7CCF7",
+        accent    = "#5A63F1",
+    },
+    pages = {
+        changelog = 7,
+        mods      = 10,
+        history   = 7,
+    },
+    buttons = {
+        main_width = 1.5,
+        exit_width = 1.5,
+    },
+    form = {
+        w = 12,
+        h = 12,
+    },
+    titles = {
+        main    = "[SERVER SYS.CONSOLE]",
+        mods    = "[SERVER MOD LIST]",
+        history = "[SERVER SYS.HISTORY]",
+    },
+    features = {
+        logging         = true,
+        detect_updates  = true,
+        detect_removals = true,
+        player_history  = true,
+    }
+}
+
+
+-- load user config if exists
+local user_config
+local settings_file = modpath.."/settings.lua"
+local f = io.open(settings_file, "r")
+if f then
+    f:close()
+    user_config = dofile(settings_file)
+else
+    user_config = {}
+end
+
+-- merge defaults with user config
+local function merge(defaults, user)
+    for k,v in pairs(defaults) do
+        if type(v) == "table" then
+            user[k] = user[k] or {}
+            merge(v, user[k])
+        else
+            user[k] = user[k] ~= nil and user[k] or v
+        end
+    end
+end
+merge(DEFAULT_CONFIG, user_config)
+local CONFIG = user_config
 local C = CONFIG.colors
 
--- Storage
+-- === STORAGE===
 local storage = minetest.get_mod_storage()
 local changelog_data = minetest.deserialize(storage:get_string("changelog_data") or "{}") or {}
 local player_history = minetest.deserialize(storage:get_string("player_history") or "{}") or {}
 local mod_hashes = minetest.deserialize(storage:get_string("mod_hashes") or "{}") or {}
 local player_pages, player_mod_pages, player_history_pages = {}, {}, {}
 
-local log_file = minetest.get_worldpath().."/etheria_changelog.log"
 
--- Utilities
+-- === LOGGING SETUP: DAILY LOGS ===
+local log_folder = minetest.get_worldpath().."/server_changelog"
+if not os.rename(log_folder, log_folder) then minetest.mkdir(log_folder) end
+
+local function write_log(entry)
+    if CONFIG.features.logging then
+        local date_str = os.date("!%Y-%m-%d", entry.time)
+        local file_path = log_folder.."/"..date_str..".log"
+        local line = string.format("[%s UTC] Mod %s %s\n",
+            os.date("!%H:%M:%S", entry.time),
+            entry.mod,
+            entry.event
+        )
+        local file = io.open(file_path,"a")
+        if file then
+            file:write(line)
+            file:close()
+        end
+    end
+end
+
+
+-- === UTILITY FUNCTIONS ===
 local function save_data(key, table_data)
     storage:set_string(key, minetest.serialize(table_data))
 end
@@ -26,14 +110,6 @@ local function hash_file(filepath)
     local content = file:read("*all")
     file:close()
     return minetest.sha1(content)
-end
-
-local function write_log(entry)
-    if CONFIG.features.logging then
-        local line = string.format("[%s] Mod %s %s\n", os.date("!%Y-%m-%d %H:%M:%S UTC", entry.time), entry.mod, entry.event)
-        local file = io.open(log_file,"a")
-        if file then file:write(line) file:close() end
-    end
 end
 
 local function add_mod_event(modname,event_type)
@@ -64,7 +140,9 @@ local function get_unseen_entries(player)
     return unseen
 end
 
--- Pagination
+
+-- === PAGINATION FUNCTIONS ===
+
 local function get_paged_entries(player,page)
     local unseen = get_unseen_entries(player)
     local page_size = CONFIG.pages.changelog
@@ -108,7 +186,8 @@ local function get_paged_history(player,page)
     return text,page,total_pages
 end
 
--- Forms
+
+-- === GUI FUNCTIONS ===
 local function formspec_base()
     return "formspec_version[4]"..
            "size["..CONFIG.form.w..","..CONFIG.form.h.."]"..
@@ -122,6 +201,7 @@ local function header_block(title)
            "label[0.5,0.5;"..title.."]"
 end
 
+-- Main terminal panel
 local function terminal_panel_for(player)
     local page = player_pages[player:get_player_name()] or 1
     local text,page,total_pages = get_paged_entries(player,page)
@@ -130,7 +210,6 @@ local function terminal_panel_for(player)
            "label[5.2,9.5;Page "..page.."/"..total_pages.."]"
 end
 
--- Footer buttons
 local function main_footer()
     return "button[0.5,9.8;"..CONFIG.buttons.main_width..",0.9;prev;«]"..
            "button[2.2,9.8;"..CONFIG.buttons.main_width..",0.9;next;»]"..
@@ -184,7 +263,8 @@ local function show(player)
     minetest.show_formspec(player:get_player_name(),"changelog:main",main_gui(player))
 end
 
--- Button handling
+
+-- Handle button clicks
 minetest.register_on_player_receive_fields(function(player, formname, fields)
     local name = player:get_player_name()
     player_pages[name] = player_pages[name] or 1
@@ -241,10 +321,12 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     end
 end)
 
+
 -- Show GUI on join
 minetest.register_on_joinplayer(function(player)
     minetest.after(1,function() show(player) end)
 end)
+
 
 -- Chat command
 minetest.register_chatcommand("changelog",{
@@ -256,6 +338,7 @@ minetest.register_chatcommand("changelog",{
         return true,"Opening Changelog Terminal..."
     end
 })
+
 
 -- Detect mod changes
 local function detect_mod_changes()
