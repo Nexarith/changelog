@@ -1,5 +1,4 @@
-# Changelog
----
+# changelog
 
 **Author:** Cashia
 **Version:** 1.0
