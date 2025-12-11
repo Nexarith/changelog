@@ -1,12 +1,10 @@
---==============================================================
---  CHANGELOG MOD — CONFIGURATION FILE
---==============================================================
+-- changelog/settings.lua
+-- Configuration template for changelog mod
 
 local CONFIG = {}
 
---------------------------------------------------------------
---  THEME COLORS
---------------------------------------------------------------
+
+-- theme colors
 CONFIG.colors = {
     bg        = "#050512",
     panel     = "#0A0B23",
@@ -16,35 +14,27 @@ CONFIG.colors = {
     accent    = "#5A63F1",
 }
 
---------------------------------------------------------------
---  FORM SIZE
---------------------------------------------------------------
+-- form size
 CONFIG.form = {
     w = 12,
     h = 12,
 }
 
---------------------------------------------------------------
---  BUTTON SIZES
---------------------------------------------------------------
+-- button size
 CONFIG.buttons = {
     main_width  = 1.5,
     small_width = 1.5,
     exit_width  = 1.5,
 }
 
---------------------------------------------------------------
---  PAGE SIZES
---------------------------------------------------------------
+-- page size
 CONFIG.pages = {
     changelog = 6,
     mods      = 10,
     history   = 6,
 }
 
---------------------------------------------------------------
---  FEATURE TOGGLES
---------------------------------------------------------------
+-- feature toggles
 CONFIG.features = {
     logging          = true,
     detect_removals  = true,
@@ -52,9 +42,8 @@ CONFIG.features = {
     player_history   = true,
 }
 
---------------------------------------------------------------
---  TITLES (Bold aesthetic ✦…✦)
---------------------------------------------------------------
+
+--  titles (bold aesthetic ✦…✦)
 CONFIG.titles = {
     main    = "✦ SERVER SYS.CONSOLE ✦",
     mods    = "✦ SERVER MOD LIST ✦",
